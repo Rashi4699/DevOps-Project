@@ -1,0 +1,55 @@
+---
+- name: Installation Nginx and Mysql
+  hosts: webserver
+  become: yes # admin root 
+  tasks:
+   - name: Run the equivalent of "apt-get update" as a separate step
+     ansible.builtin.apt:
+       update_cache: yes
+
+   - name: Install nginx 
+     apt:
+       name: nginx
+       state: present
+
+   - name: Install Mysql
+     apt:
+      name: mysql-server
+      state: present
+
+   - name: Install dependency
+     apt:
+        name: python3-pymysql
+        state: present
+
+   - name: Create database using socket
+     community.mysql.mysql_db:
+        name: mydb
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+   - name: Create MySQL user using socket
+     community.mysql.mysql_user:
+        name: devuser
+        password: password123
+        priv: mydb.*:ALL
+        host: "%"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+   - name: Enable MySQL remote access
+     lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: '^bind-address'
+        line: 'bind-address = 0.0.0.0'
+
+   - name: Restart MySQL
+     service:
+        name: mysql
+        state: restarted
+
+   - name: Enable Nginx
+     service:
+        name: nginx
+        state: started
+        enabled: yes
